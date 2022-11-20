@@ -24,23 +24,15 @@
          [def* : (Listof Def)]
          [prelude* : (Listof Expr)]
          [result : Expr])
-  (e-app [fun : Expr] [arg* : (Listof Expr)])
   (e-let [bind* : (Listof Bind)]
          [def* : (Listof Def)]
          [prelude* : (Listof Expr)]
          [result : Expr])
-  (e-let* [bind* : (Listof Bind)]
-          [def* : (Listof Def)]
-          [prelude* : (Listof Expr)]
-          [result : Expr])
-  (e-letrec [bind* : (Listof Bind)]
-            [def* : (Listof Def)]
-            [prelude* : (Listof Expr)]
-            [result : Expr])
-  (e-set! [var : Id] [val : Expr])
-  (e-begin [prelude* : (Listof Expr)] [result : Expr])
   (e-if [cnd : Expr] [thn : Expr] [els : Expr])
-  (e-cond [cnd-thn* : (Listof (Expr * Expr))] [els : (Optionof Expr)]))
+  (e-begin [prelude* : (Listof Expr)] [result : Expr])
+  (e-set! [var : Id] [val : Expr])
+  (e-app [fun : Expr] [arg* : (Listof Expr)])
+  )
 (define (bind x e) (values x e))
 (define-type-alias Bind (Id * Expr))
 (define (var-of-bind bind) (fst bind))

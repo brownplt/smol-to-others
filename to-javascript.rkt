@@ -3,17 +3,22 @@
 (require "utilities.rkt")
 (require (typed-in racket [number->string : (Number -> String)]))
 
+(define-type ExprCtx
+  (Tail)
+  (Ignored)
+  (SubExpr))
+
 (define (smol->javascript [program : Program]): String
   (let* ([def* (fst program)]
          [exp* (snd program)])
     (string-append (def*->string def*)
-                   (exp*->string exp*))))
+                   (top-exp*->string exp*))))
 
 (define (def*->string [def* : (Listof Def)])
   (string-concat (map def->string def*)))
 
-(define (exp*->string [exp* : (Listof Expr)])
-  (string-concat (map exp->string exp*)))
+(define (top-exp*->string [exp* : (Listof Expr)])
+  (string-concat (map (string-wrap "console.log(" ");") (map (exp->string (SubExpr)) exp*))))
 
 (define (def->string [def : Def]) : String
   (type-case Def def
@@ -25,7 +30,7 @@
        "let "
        (symbol->string var)
        " = "
-       (exp->string val)
+       ((exp->string (SubExpr)) val)
        ";"))]))
 
 (define (constant->string [c : Constant])
@@ -60,83 +65,93 @@
 (define (bind->def [bind : Bind]) : Def
   (d-var (fst bind) (snd bind)))
 
-(define (optionof-exp->string optionof-exp)
-  (type-case (Optionof '_) optionof-exp
-    [(none) "null"]
-    [(some e) (exp->string e)]))
+(define (return ec str)
+  (string-append (if (Tail? ec) "return " "") str))
 
-(define (exp->string [exp : Expr]) : String
-  (type-case Expr exp
-    [(e-con c)
-     (constant->string c)]
-    [(e-var x)
-     (id->string x)]
-    [(e-fun arg* def* prelude* result)
+(define (make-app fun arg*)
+  (case (string->symbol fun)
+    [(+ - * / < <= > >=)
+     ((string-wrap "(" ")") ((string-join fun) arg*))]
+    [(equal?)
+     ((string-wrap "(" ")") ((string-join "==") arg*))]
+    [(eq?)
+     ((string-wrap "(" ")") ((string-join "===") arg*))]
+    [else
      (string-concat
       (list
+       fun
        "("
-       ((string-join ",") (map id->string arg*))
-       ") => {"
-       (string-concat (map def->string def*))
-       (string-concat (map (string-surfix ";") (map exp->string prelude*)))
-       "return"
-       (exp->string result)
-       ";"
-       "}"))]
-    [(e-app fun arg*)
-     (string-concat
-      (list
-       (exp->string fun)
-       "("
-       ((string-join ",") (map exp->string arg*))
-       ")"))]
-    [(e-let bind* def* prelude* result)
-     (exp->string
-      (e-app (e-fun (map var-of-bind bind*) def* prelude* result)
-             (map val-of-bind bind*)))]
-    [(e-let* bind* def* prelude* result)
-     (if (empty? bind*)
-         (exp->string (e-let (list) def* prelude* result))
-         (exp->string (e-let (list (first bind*))
-                             (list)
-                             (list)
-                             (e-let* (rest bind*) def* prelude* result))))]
-    [(e-letrec bind* def* prelude* result)
-     (exp->string
-      (e-let (list)
-             (append (map bind->def bind*) def*)
-             prelude* result))]
-    [(e-set! var val)
-     (string-concat
-      (list
-       "("
-       (id->string var)
-       " = "
-       (exp->string val)
-       ", null)"))]
-    [(e-begin prelude* result)
-     (string-concat
-      (list
-       "("
-       (string-concat (map (string-surfix ",") (map exp->string prelude*)))
-       (exp->string result)
-       ")"))]
-    [(e-if cnd thn els)
-     (string-concat
-      (list
-       "("
-       (exp->string cnd)
-       "?"
-       (exp->string thn)
-       ":"
-       (exp->string els)
-       ")"))]
-    [(e-cond cnd-thn* els)
-     (if (empty? cnd-thn*)
-         (optionof-exp->string els)
-         (let* ([cnd-thn (first cnd-thn*)]
-                [cnd-thn* (rest cnd-thn*)]
-                [cnd (fst cnd-thn)]
-                [thn (snd cnd-thn)])
-           (exp->string (e-if cnd thn (e-cond cnd-thn* els)))))]))
+       ((string-join ",") arg*)
+       ")"))]))
+
+(define (exp->string [ec : ExprCtx])
+  (lambda ([exp : Expr]) : String
+    (type-case Expr exp
+      [(e-con c)
+       (return ec (constant->string c))]
+      [(e-var x)
+       (return ec (id->string x))]
+      [(e-fun arg* def* prelude* result)
+       (return ec
+               (string-concat
+                (list
+                 "(("
+                 ((string-join ",") (map id->string arg*))
+                 ") => {"
+                 (string-concat (map def->string def*))
+                 (string-concat (map (string-suffix ";") (map (exp->string (Ignored)) prelude*)))
+                 ((exp->string (Tail)) result)
+                 "})")))]
+      [(e-app fun arg*)
+       (return ec
+               (make-app ((exp->string (SubExpr)) fun) (map (exp->string (SubExpr)) arg*)))]
+      [(e-let bind* def* prelude* result)
+       ((exp->string ec)
+        (e-app (e-fun (map var-of-bind bind*) def* prelude* result)
+               (map val-of-bind bind*)))]
+      [(e-set! var val)
+       (type-case ExprCtx ec
+         [(Ignored)
+          (string-concat
+           (list
+            (id->string var)
+            " = "
+            ((exp->string (SubExpr)) val)))]
+         [else
+          (return ec
+                  (string-concat
+                   (list
+                    "("
+                    (id->string var)
+                    " = "
+                    ((exp->string (SubExpr)) val)
+                    ", null)")))])]
+      [(e-begin prelude* result)
+       (return ec
+               (string-concat
+                (list
+                 "("
+                 (string-concat (map (string-suffix ",") (map (exp->string ec) prelude*)))
+                 ((exp->string ec) result)
+                 ")")))]
+      [(e-if cnd thn els)
+       (if (Tail? ec)
+           (string-concat
+            (list
+             "if ("
+             ((exp->string (SubExpr)) cnd)
+             ") {"
+             ((exp->string (Tail)) thn)
+             "}else{"
+             ((exp->string (Tail)) els)
+             "}"))
+           (string-concat
+            (list
+             "("
+             ((exp->string ec) cnd)
+             "?"
+             ((exp->string ec) thn)
+             ":"
+             ((exp->string ec) els)
+             ")")))])))
 

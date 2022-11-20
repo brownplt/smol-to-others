@@ -13,12 +13,16 @@
           (string-concat (map (string-prefix sep) (rest s*)))))))
 
 (define (string-concat s*)
-  (foldl string-append "" s*))
+  (foldl (lambda (x so-far) (string-append so-far x)) "" s*))
 
-(define (string-surfix [surfix : String])
+(define (string-suffix [suffix : String])
   (lambda ([s : String]) : String
-    (string-append s surfix)))
+    (string-append s suffix)))
 
 (define (string-prefix [prefix : String])
   (lambda ([s : String]) : String
     (string-append prefix s)))
+
+(define (string-wrap prefix suffix)
+  (lambda ([s : String])
+    (string-append prefix (string-append s suffix))))
