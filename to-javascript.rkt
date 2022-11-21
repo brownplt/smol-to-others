@@ -2,11 +2,11 @@
 (require "io.rkt")
 (require "utilities.rkt")
 (require (typed-in racket [number->string : (Number -> String)]))
+(require (typed-in racket/string [string-replace : (String String String -> String)]))
 
-(define-type ExprCtx
-  (Tail)
-  (Ignored)
-  (SubExpr))
+(define (SubExpr) (ToExpr))
+(define (Tail) (ToStmt (string-prefix "return ")))
+(define (Ignored) (ToStmt identity))
 
 (define (smol->javascript [program : Program]): String
   (let* ([def* (fst program)]
@@ -23,12 +23,20 @@
 (define (def->string [def : Def]) : String
   (type-case Def def
     [(d-fun fun arg* def* prelude* result)
-     (def->string (d-var fun (e-fun arg* def* prelude* result)))]
+     (string-concat
+      (list
+       "function "
+       (id->string fun)
+       "("
+       (fun-head->string arg*)
+       "){"
+       (fun-body->string def* prelude* result)
+       "}"))]
     [(d-var var val)
      (string-concat
       (list
        "let "
-       (symbol->string var)
+       (id->string var)
        " = "
        ((exp->string (SubExpr)) val)
        ";"))]))
@@ -44,7 +52,6 @@
        "\""))]
     [(c-num n) (number->string n)]
     [(c-bool b) (if b "true" "false")]
-    [(c-char c) (char->string c)]
     [(c-vec c*)
      (string-concat
       (list
@@ -60,13 +67,15 @@
     ))
 
 (define (id->string id)
-  (symbol->string id))
+  (kebab->camel (symbol->string id)))
 
 (define (bind->def [bind : Bind]) : Def
   (d-var (fst bind) (snd bind)))
 
-(define (return ec str)
-  (string-append (if (Tail? ec) "return " "") str))
+(define (return ec s)
+  (type-case ExprCtx ec
+    [(ToExpr) s]
+    [(ToStmt f) (f s)]))
 
 (define (make-app fun arg*)
   (case (string->symbol fun)
@@ -84,6 +93,16 @@
        ((string-join ",") arg*)
        ")"))]))
 
+(define (fun-head->string arg*)
+  ((string-join ",") (map id->string arg*)))
+
+(define (fun-body->string def* prelude* result)
+  (string-concat
+   (list
+    (string-concat (map def->string def*))
+    (string-concat (map (string-suffix ";") (map (exp->string (Ignored)) prelude*)))
+    ((exp->string (Tail)) result))))
+
 (define (exp->string [ec : ExprCtx])
   (lambda ([exp : Expr]) : String
     (type-case Expr exp
@@ -96,11 +115,9 @@
                (string-concat
                 (list
                  "(("
-                 ((string-join ",") (map id->string arg*))
+                 (fun-head->string arg*)
                  ") => {"
-                 (string-concat (map def->string def*))
-                 (string-concat (map (string-suffix ";") (map (exp->string (Ignored)) prelude*)))
-                 ((exp->string (Tail)) result)
+                 (fun-body->string def* prelude* result)
                  "})")))]
       [(e-app fun arg*)
        (return ec
@@ -121,11 +138,9 @@
           (return ec
                   (string-concat
                    (list
-                    "("
                     (id->string var)
                     " = "
-                    ((exp->string (SubExpr)) val)
-                    ", null)")))])]
+                    ((exp->string (SubExpr)) val))))])]
       [(e-begin prelude* result)
        (return ec
                (string-concat

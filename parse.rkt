@@ -4,6 +4,13 @@
 (require syntax/parse)
 (require (only-in plait pair some none))
 
+(define (good-identifier? x)
+  (let ([cs (string->list (symbol->string x))])
+    (and (andmap (or/c char-alphabetic?
+                       char-numeric?
+                       (one-of/c #\- #\_ #\* #\! #\?)) cs)
+         (pair? cs)
+         (not (char-numeric? (first cs))))))
 (define keywords
   '(defvar
      deffun
@@ -16,18 +23,17 @@
      not
      begin
      set!
-     vec
-     mvec
-     vec-len
-     vec-ref
-     vec-set!
      pair
      mpair
      left
      right
      set-left!
      set-right!
-     pair?
+     vec
+     mvec
+     vec-len
+     vec-ref
+     vec-set!
      equal?
      eq?))
 (define primitive-operators
@@ -47,13 +53,13 @@
 (define-syntax-class name
   (pattern x:identifier
     #:fail-when
-    (member (syntax-e #'x) (append keywords primitive-operators))
+    (or (member (syntax-e #'x) (append keywords primitive-operators))
+        (not (good-identifier? (syntax-e #'x))))
     "expected an identifier that is neither a keyword nor a primitive operator"))
 (define-syntax-class constant
   (pattern x:string)
   (pattern x:number)
   (pattern x:boolean)
-  (pattern x:char)
   (pattern #(c:literal ...))
   (pattern ((~datum quote) #(c:literal ...)))
   (pattern ((~datum quote) (c:literal ...))))
@@ -80,18 +86,17 @@
   (pattern ((~datum not) e1:e))
   (pattern ((~datum begin) e1:e ... e2:e))
   (pattern ((~datum set!) x:name e))
-  (pattern ((~datum vec) e1:e ...))
-  (pattern ((~datum mvec) e1:e ...))
-  (pattern ((~datum vec-len) e1:e))
-  (pattern ((~datum vec-ref) e1:e e2:e))
-  (pattern ((~datum vec-set!) e1:e e2:e e3:e))
   (pattern ((~datum pair) e1:e e2:e))
   (pattern ((~datum mpair) e1:e e2:e))
   (pattern ((~datum left) e1:e))
   (pattern ((~datum right) e1:e))
   (pattern ((~datum set-left!) e1:e e2:e))
   (pattern ((~datum set-right!) e1:e e2:e))
-  (pattern ((~datum pair?) e1:e))
+  (pattern ((~datum vec) e1:e ...))
+  (pattern ((~datum mvec) e1:e ...))
+  (pattern ((~datum vec-len) e1:e))
+  (pattern ((~datum vec-ref) e1:e e2:e))
+  (pattern ((~datum vec-set!) e1:e e2:e e3:e))
   (pattern ((~datum equal?) e1:e e2:e))
   (pattern ((~datum eq?) e1:e e2:e))
   (pattern ((~datum +) e1:e e2:e e3:e ...))
@@ -104,7 +109,7 @@
   (pattern ((~datum >=) e1:e e2:e))
   (pattern (e1:e e2:e ...)))
 (define-syntax-class p
-  (pattern (d:d ... e:e ...)))
+  (pattern (d1:d ... e1:e ...)))
 
 (define (parse prog)
   (syntax-parse prog
@@ -213,8 +218,6 @@
      (c-num (syntax-e #'x))]
     [x:boolean
      (c-bool (syntax-e #'x))]
-    [x:char
-     (c-char (syntax-e #'x))]
     [x:string
      (c-str (syntax-e #'x))]
     [((~datum quote) (x:literal ...))
@@ -229,8 +232,6 @@
      (c-num (syntax-e #'x))]
     [x:boolean
      (c-bool (syntax-e #'x))]
-    [x:char
-     (c-char (syntax-e #'x))]
     [x:string
      (c-str (syntax-e #'x))]
     [#(x:literal ...)

@@ -6,7 +6,6 @@
   (c-str [it : String])
   (c-num [it : Number])
   (c-bool [it : Boolean])
-  (c-char [it : Char])
   (c-vec [it : (Listof Constant)])
   (c-list [it : (Listof Constant)]))
 (define-type-alias Program ((Listof Def) * (Listof Expr)))

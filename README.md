@@ -1,46 +1,23 @@
 # smol-to-others
 
-Translate SMoL programs to other programming languages
+Translate SMoL programs to other programming languages:
 
-## The grammar of SMoL
+- JavaScript
+- Python
+- (WIP) Racket
+- (WIP) OCaml
 
-```
-d ::= (defvar x e)
-    | (deffun (f x ...) body)
-e ::= c
-    | x
-    | (lambda (x ...) body)
-    | (λ (x ...) body)
-    | (let ([x e] ...) body)
-    | (if e e e)
-    | (begin e ... e)
-    | (set! x e)
-    | (vec e ...)
-    | (mvec e ...)
-    | (vec-len e)
-    | (vec-ref e e)
-    | (vec-set! e e e)
-    | (pair e e)
-    | (mpair e e)
-    | (left e)
-    | (right e)
-    | (set-left! e e)
-    | (set-right! e e)
-    | (pair? e)
-    | (equal? e e)
-    | (eq? e e)
-    | (o e ...)
-    | (e e ...)
-o ::= < | <= | > | >=
-    | + | - | * | /
+## Design decisions
 
-body    ::= d ... e ... e
-program ::= d ... e ...
-```
+Sometimes, the most "natural" translation does not preserve the semantics. For example, `(set! x 2)` produces the void value in smol while `x = 2` produces `2` in JavaScript. We decide to go for the natural translation because a goal of the whole smol project is to expose the consensus while *acknowledging* the differences.
 
-## Know differences from the `#lang smol`
+## The supported subset of SMoL
+
+### Know differences from the `#lang smol`
 
 Immutable vectors are not supported. So `ivec` is not defined. `pair` is considered an alias of `mpair`.
+
+`pair?` is not supported.
 
 `and`, `or`, and `not` are not suported.
 
@@ -56,9 +33,44 @@ Immutable vectors are not supported. So `ivec` is not defined. `pair` is conside
 
 Lists are not supported. So `cons`, `empty`, `list`, `map`, `filter`, `foldl`, and `foldr` are not provided.
 
+Some identifiers are not allowed to be used as variables. Specifically,
+a variable must not look like of the keywords and primitive operators.
+Furthermore, only alphabetic characters, numeric characters, `-`, `_`, `*`, `!`, and `?` can appear in a variable. A variable must be non-empty and must not start with a number.
+
+```
+d ::= (defvar x e)
+    | (deffun (f x ...) body)
+e ::= c
+    | x
+    | (lambda (x ...) body)
+    | (λ (x ...) body)
+    | (let ([x e] ...) body)
+    | (if e e e)
+    | (begin e ... e)
+    | (set! x e)
+    | (pair e e)
+    | (mpair e e)
+    | (left e)
+    | (right e)
+    | (set-left! e e)
+    | (set-right! e e)
+    | (vec e ...)
+    | (mvec e ...)
+    | (vec-len e)
+    | (vec-ref e e)
+    | (vec-set! e e e)
+    | (equal? e e)
+    | (eq? e e)
+    | (o e ...)
+    | (e e ...)
+o ::= < | <= | > | >=
+    | + | - | * | /
+
+body    ::= d ... e ... e
+program ::= d ... e ...
+```
+
 ## Dependencies
 
-To JavaScript:
-
-- [`js-beautify`](https://github.com/beautify-web/js-beautify)
-
+- (for javascript) `js-beautify`
+- (for python) `autopep8`
