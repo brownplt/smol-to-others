@@ -9,7 +9,11 @@ Translate SMoL programs to other programming languages:
 
 ## Design decisions
 
-Sometimes, the most "natural" translation does not preserve the semantics. For example, `(set! x 2)` produces the void value in smol while `x = 2` produces `2` in JavaScript. We decide to go for the natural translation because a goal of the whole smol project is to expose the consensus while *acknowledging* the differences.
+Sometimes, the most "natural" translation does not preserve the semantics. For example, `(set! x 2)` produces the void value in smol while `x = 2` produces `2` in JavaScript. We decide to go for the natural translation because a goal of the whole smol project is to point out the consensus while *acknowledging* the differences.
+
+TODO: we keep the spirit of programs -- set! and vec-set! etc. are not printed.
+
+It is fine that some smol program can't find their translation. For example, `begin` has no obvious counterparts in Python.
 
 ## The supported subset of SMoL
 
