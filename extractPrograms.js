@@ -4,10 +4,10 @@ function processTutorial(tutorial) {
 
     console.log(`Processing tutorial ${tutorial}`);
 
-    function outputProgram(name, program) {
+    function outputProgram(name, program, answer) {
         require('fs').writeFileSync(
             `Programs/${tutorial}_${name}.smol`,
-            program);
+            `${program}\n;; ${answer}\n`);
     }
 
     require('fs').readFile(`tutorials/${tutorial}.toml`, function (err, data) {
@@ -15,16 +15,16 @@ function processTutorial(tutorial) {
         for (let [k, v] of Object.entries(json.questions)) {
             program = v["program"];
             answer = v["answer"];
-            if (program && answer) {
-                outputProgram(k, program);
+            if (program !== undefined && answer !== undefined) {
+                outputProgram(k, program, answer);
             }
             again = v["again"];
             if (again) {
                 v = again;
                 program = v["program"];
                 answer = v["answer"];
-                if (program && answer) {
-                    outputProgram(k + "_again", program);
+                if (program !== undefined && answer !== undefined) {
+                    outputProgram(k + "_again", program, answer);
                 }
             }
         }

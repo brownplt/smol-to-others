@@ -4,23 +4,13 @@
 (require (typed-in racket [number->string : (Number -> String)]))
 (require (typed-in racket/string [string-replace : (String String String -> String)]))
 
-(define (to-return s)
-  (if (equal? s "None")
-      "return"
-      ((string-prefix "return ") s)))
-(define (to-print s)
-  (if (equal? s "None")
-      ""
-      ((string-wrap "print(" ")") s)))
-(define to-ignore identity)
-
 (define (smol->python [program : Program]): String
   (let* ([def* (fst program)]
          [exp* (snd program)])
     (string-concat-line
      (append
       (map def->string def*)
-      (map (exp->string (ToStmt to-print)) exp*)))))
+      (map (exp->string (as-stmt (top))) exp*)))))
 
 (define string-concat-line (string-join "\n"))
 
@@ -41,7 +31,7 @@
        ""
        (id->string var)
        " = "
-       ((exp->string (ToExpr)) val)
+       ((exp->string (as-expr)) val)
        ""))]))
 
 (define (constant->string [c : Constant])
@@ -77,12 +67,13 @@
 
 (define (make-vec-set! ec v i e)
   (type-case ExprCtx ec
-    [(ToExpr)
+    [(as-expr)
      (string-concat
       (list v ".__setitem__(" i ", " e ")"))]
-    [(ToStmt f)
-     (string-concat
-      (list v "[" i "] = " e))]))
+    [(as-stmt stmt)
+     (stmt-as-stmt
+      stmt
+      (string-concat (list v "[" i "] = " e)))]))
 
 (define (make-app ec [fun : Expr] arg*)
   (type-case Expr fun
@@ -146,7 +137,7 @@
     [else
      (return ec (string-concat
                  (list
-                  ((exp->string (ToExpr)) fun)
+                  ((exp->string (as-expr)) fun)
                   "("
                   ((string-join ",") arg*)
                   ")")))]))
@@ -159,14 +150,24 @@
    (append
     (map def->string def*)
     (append
-     (map (exp->string (ToStmt to-ignore)) prelude*)
+     (map (exp->string (as-stmt (bgn))) prelude*)
      (list
-      ((exp->string (ToStmt to-return)) result))))))
+      ((exp->string (as-stmt (ret))) result))))))
 
 (define (return ec s)
   (type-case ExprCtx ec
-    [(ToExpr) s]
-    [(ToStmt f) (f s)]))
+    [(as-expr) s]
+    [(as-stmt stmt)
+     (type-case Stmt stmt
+       [(top) ((string-wrap "print(" ")") s)]
+       [(ret) ((string-wrap "return " "") s)]
+       [(bgn) s])]))
+
+(define (stmt-as-stmt stmt s)
+  (type-case Stmt stmt
+    [(top) s]
+    [(ret) (string-append s "\nreturn")]
+    [(bgn) s]))
 
 (define (exp->string [ec : ExprCtx])
   (lambda ([exp : Expr]) : String
@@ -185,53 +186,44 @@
                  (fun-body->string def* prelude* result)
                  "")))]
       [(e-app fun arg*)
-       (make-app ec fun (map (exp->string (ToExpr)) arg*))]
+       (make-app ec fun (map (exp->string (as-expr)) arg*))]
       [(e-let bind* def* prelude* result)
        ((exp->string ec)
         (e-app (e-fun (map var-of-bind bind*) def* prelude* result)
                (map val-of-bind bind*)))]
       [(e-set! var val)
-      ;;;  ;;; ignore ec!!!
-      ;;;  (string-concat
-      ;;;   (list
-      ;;;    (id->string var)
-      ;;;    " = "
-      ;;;    ((exp->string (ToExpr)) val)))
-      ;;;  #;
        (type-case ExprCtx ec
-         [(ToExpr)
+         [(as-expr)
           (string-concat
            (list
             (id->string var)
             " := "
-            ((exp->string (ToExpr)) val)))]
-         [(ToStmt f)
-          (string-concat-line
-           (list
-            (string-concat
-             (list
-              (id->string var)
-              " = "
-              ((exp->string (ToExpr)) val)))
-            ;;; ignore the context !!!
-            #;(f "None")))])]
+            ((exp->string (as-expr)) val)))]
+         [(as-stmt stmt)
+          (stmt-as-stmt
+           stmt
+           (string-concat
+            (list
+             (id->string var)
+             " = "
+             ((exp->string (as-expr)) val))))])]
       [(e-begin prelude* result)
        (type-case ExprCtx ec
-         [(ToExpr)
+         [(as-expr)
           (string-concat
            (list
             "("
-            (string-concat (map (string-suffix ",") (map (exp->string (ToExpr)) prelude*)))
-            ((exp->string (ToExpr)) result)
+            (string-concat (map (string-suffix ",") (map (exp->string (as-expr)) prelude*)))
+            ((exp->string (as-expr)) result)
             ")[-1]"))]
-         [else
+         [(as-stmt stmt)
           (string-concat-line
            (append
-            (map (exp->string (ToStmt to-ignore)) prelude*)
-            (list ((exp->string ec) result))))])]
+            (map (exp->string (as-stmt (bgn))) prelude*)
+            (list ((exp->string (as-stmt stmt)) result))))])]
       [(e-if cnd thn els)
        (type-case ExprCtx ec
-         [(ToExpr)
+         [(as-expr)
           (string-concat
            (list
             ((exp->string ec) thn)
@@ -242,7 +234,7 @@
          [else
           (string-concat-line
            (list
-            (string-concat (list "if " ((exp->string (ToExpr)) cnd) ":"))
+            (string-concat (list "if " ((exp->string (as-expr)) cnd) ":"))
             (indent ((exp->string ec) thn))
             "else:"
             (indent ((exp->string ec) els))))])])))

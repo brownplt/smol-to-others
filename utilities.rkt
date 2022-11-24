@@ -7,9 +7,14 @@
 (require (typed-in racket [regexp : (String -> Regexp)]))
 (require (typed-in racket [regexp-replace* : (Regexp String (String String -> String) -> String)]))
 
+(define-type Stmt
+  (top)
+  (bgn)
+  (ret))
+
 (define-type ExprCtx
-  (ToStmt [wrap : (String -> String)])
-  (ToExpr))
+  (as-stmt [stmt : Stmt])
+  (as-expr))
 
 (define (char->string c)
   (string c))
