@@ -75,7 +75,7 @@
 (define (first-not-in v us)
   (local ((define (loop i)
             (local (
-                    (define u (string-append (string-append v "_") (number->string i)))
+                    (define u (string-append v (number->string i)))
                     )
               (if (member u us)
                   (loop (add1 i))
@@ -84,19 +84,22 @@
         (loop 1)
         v)))
 
-(define (make-translater propose)
+(define (make-translater propose reserved-names fallback-name)
   (local ((define cache (make-hash (list))))
     (lambda (kebab)
       (type-case (Optionof '_) (hash-ref cache kebab)
         [(some v) v]
         [(none)
-         (local ((define v (propose kebab)))
+         (local ((define v (if (member kebab reserved-names)
+                               fallback-name
+                               (propose kebab))))
            (begin
              (hash-set! cache v (first-not-in v (hash-values cache)))
              v))]))))
 
-(define kebab->camel (make-translater propose-camel))
-(define kebab->snake (make-translater propose-snake))
+(define kebab->camel (make-translater propose-camel (list) "x"))
+(define kebab->jsvar (make-translater propose-camel (list "return" "var" "function") "x"))
+(define kebab->snake (make-translater propose-snake (list) "x"))
 
 (define (indent [s : String])
   (let ([p (regexp "(\n)")])

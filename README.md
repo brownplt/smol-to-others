@@ -7,13 +7,17 @@ Translate SMoL programs to other programming languages:
 - (WIP) Racket
 - (WIP) OCaml
 
+## Usage
+
+```sh
+racket main.rkt Examples/fact.smol
+```
+
 ## Design decisions
 
 Sometimes, the most "natural" translation does not preserve the semantics. For example, `(set! x 2)` produces the void value in smol while `x = 2` produces `2` in JavaScript. We decide to go for the natural translation because a goal of the whole smol project is to point out the consensus while *acknowledging* the differences.
 
-TODO: we keep the spirit of programs -- set! and vec-set! etc. are not printed.
-
-It is fine that some smol program can't find their translation. For example, `begin` has no obvious counterparts in Python.
+TODO: Python non-local variables need to be declared. We also need to be careful about the distrinction between `nonlocal` and `global`.
 
 ## The supported subset of SMoL
 
@@ -38,7 +42,7 @@ Immutable vectors are not supported. So `ivec` is not defined. `pair` is conside
 Lists are not supported. So `cons`, `empty`, `list`, `map`, `filter`, `foldl`, and `foldr` are not provided.
 
 Some identifiers are not allowed to be used as variables. Specifically,
-a variable must not look like of the keywords and primitive operators.
+the identifier must not be the same as one of the keywords and primitive operators.
 Furthermore, only alphabetic characters, numeric characters, `-`, `_`, `*`, `!`, and `?` can appear in a variable. A variable must be non-empty and must not start with a number.
 
 ```
@@ -58,7 +62,6 @@ e ::= c
     | (right e)
     | (set-left! e e)
     | (set-right! e e)
-    | (vec e ...)
     | (mvec e ...)
     | (vec-len e)
     | (vec-ref e e)

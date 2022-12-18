@@ -215,7 +215,7 @@
             "("
             (string-concat (map (string-suffix ",") (map (exp->string (as-expr)) prelude*)))
             ((exp->string (as-expr)) result)
-            ")[-1]"))]
+            ",)[-1]"))]
          [(as-stmt stmt)
           (string-concat-line
            (append

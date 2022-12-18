@@ -29,7 +29,6 @@
      right
      set-left!
      set-right!
-     vec
      mvec
      vec-len
      vec-ref
@@ -49,13 +48,13 @@
   (pattern x:identifier
     #:fail-unless
     (member (syntax-e #'x) primitive-operators)
-    "expected a primitive operator"))
+    "expecting a primitive operator"))
 (define-syntax-class name
   (pattern x:identifier
     #:fail-when
     (or (member (syntax-e #'x) (append keywords primitive-operators))
         (not (good-identifier? (syntax-e #'x))))
-    "expected an identifier that is neither a keyword nor a primitive operator"))
+    "expecting an identifier that is neither a keyword nor a primitive operator"))
 (define-syntax-class constant
   (pattern x:string)
   (pattern x:number)
@@ -92,7 +91,6 @@
   (pattern ((~datum right) e1:e))
   (pattern ((~datum set-left!) e1:e e2:e))
   (pattern ((~datum set-right!) e1:e e2:e))
-  (pattern ((~datum vec) e1:e ...))
   (pattern ((~datum mvec) e1:e ...))
   (pattern ((~datum vec-len) e1:e))
   (pattern ((~datum vec-ref) e1:e e2:e))
@@ -177,8 +175,6 @@
               (parse-e #'e2))]
     [((~datum set!) x:name e1:e)
      (e-set! (parse-x #'x) (parse-e #'e1))]
-    [((~datum vec) e1:e ...)
-     (e-app (e-var 'mvec) (parse-e* #'(e1 ...)))]
     [((~datum mvec) e1:e ...)
      (e-app (e-var 'mvec) (parse-e* #'(e1 ...)))]
     [((~datum vec-len) e1:e)

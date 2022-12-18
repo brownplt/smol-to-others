@@ -29,7 +29,7 @@
   (for ([file-to-compile files-to-compile])
 
     (unless (string-suffix? file-to-compile ".smol")
-      (displayln "WARNING: the file name is not end with `.smol`."))
+      (displayln "WARNING: the file name is supposed to end with `.smol`."))
 
     (define file-to-print
       (string-append file-to-compile ".js"))
@@ -53,7 +53,7 @@
   (for ([file-to-compile files-to-compile])
 
     (unless (string-suffix? file-to-compile ".smol")
-      (displayln "WARNING: the file name is not end with `.smol`."))
+      (displayln "WARNING: the file name is supposed to end with `.smol`"))
 
     (define file-to-print
       (string-append file-to-compile ".py"))

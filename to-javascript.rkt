@@ -61,7 +61,7 @@
     ))
 
 (define (id->string id)
-  (kebab->snake (symbol->string id)))
+  (kebab->jsvar (symbol->string id)))
 
 (define (bind->def [bind : Bind]) : Def
   (d-var (fst bind) (snd bind)))
@@ -112,9 +112,8 @@
                      [(vec-len)
                       (string-concat
                        (list
-                        "len("
                         (first arg*)
-                        ")"))]
+                        ".length"))]
                      [(vec-ref)
                       (string-concat
                        (list
